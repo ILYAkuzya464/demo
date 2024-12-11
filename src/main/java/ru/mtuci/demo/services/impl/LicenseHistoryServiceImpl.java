@@ -10,7 +10,6 @@ import ru.mtuci.demo.services.LicenseHistoryService;
 
 import java.util.Date;
 
-
 @Service
 public class LicenseHistoryServiceImpl implements LicenseHistoryService {
 

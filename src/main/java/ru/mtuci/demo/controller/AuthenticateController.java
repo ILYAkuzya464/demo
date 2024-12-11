@@ -19,6 +19,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.stream.Collectors;
 
+//TODO: 1. Для каждой сущности должен быть предоставлен полный список операций CRUD
 
 @RequiredArgsConstructor
 @RequestMapping("/auth")

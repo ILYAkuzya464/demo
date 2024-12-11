@@ -22,6 +22,11 @@ import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.util.*;
 
+//TODO: 1. Как пользователю активировать лицензию на новом устройстве, если вы кидаете исключение?
+//TODO: 2. Тексты исключений не соответствуют реальной логике
+//TODO: 3. Ошибки в подсчетах дат
+//TODO: 4. Для чего нужен список тикетов?
+
 @RequiredArgsConstructor
 @Service
 public class LicenseServiceImpl implements LicenseService {

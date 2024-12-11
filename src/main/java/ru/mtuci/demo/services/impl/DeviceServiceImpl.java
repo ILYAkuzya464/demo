@@ -13,6 +13,8 @@ import java.net.SocketException;
 import java.util.Enumeration;
 import java.util.Optional;
 
+//TODO: 1. Откуда берётся мак-адрес устройства?
+
 @RequiredArgsConstructor
 @Service
 public class DeviceServiceImpl implements DeviceService {
