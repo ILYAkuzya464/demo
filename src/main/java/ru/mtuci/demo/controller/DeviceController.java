@@ -14,6 +14,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+//TODO: 1. Дублирование кода между классами
+
 @RequiredArgsConstructor
 @RequestMapping("/device")
 @RestController

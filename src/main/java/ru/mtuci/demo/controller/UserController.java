@@ -14,6 +14,8 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.Optional;
 
+//TODO: 1. Один пользователь может удалить другого?
+
 @RequiredArgsConstructor
 @RestController
 @RequestMapping("/user")
