@@ -21,4 +21,5 @@ public interface LicenseService {
     void changeLicenseStatus(Long licenseId, boolean isBlocked, User authenticatedUser);
     boolean existsByProductId(Long id);
     boolean existsByLicenseTypeId(Long id);
+
 }

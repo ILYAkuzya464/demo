@@ -10,4 +10,6 @@ public interface UserService {
     User getById(Long id);
     Optional<User> findByEmail(String email);
     void create(String email, String name, String password) ;
+    void changePassword(String oldPassword, String newPassword, User user);
+    User getAuthenticatedUser();
 }

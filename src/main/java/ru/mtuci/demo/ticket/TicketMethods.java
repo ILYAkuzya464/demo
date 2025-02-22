@@ -43,7 +43,8 @@ public class TicketMethods {
 
     public String generateDigitalSignature() {
         try {
-            String data = serialize();
+            String timestamp = String.valueOf(System.currentTimeMillis());
+            String data = serialize() + timestamp;
             SecretKeySpec secretKey = new SecretKeySpec(this.secretKey.getBytes(), HMAC_ALGORITHM);
             Mac mac = Mac.getInstance(HMAC_ALGORITHM);
             mac.init(secretKey);

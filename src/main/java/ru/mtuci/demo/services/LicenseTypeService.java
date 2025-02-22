@@ -11,4 +11,5 @@ public interface LicenseTypeService {
     List<LicenseType> findAll();
     Optional<LicenseType> findById(Long id);
     void deleteById(Long id);
+    void updateDuration(Long licenseTypeId, int newDefaultDuration);
 }

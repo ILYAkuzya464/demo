@@ -68,10 +68,7 @@ public class ProductController {
     public ResponseEntity<Product> getProductById(@PathVariable Long id) {
         try {
             Optional<Product> product = productRepository.findById(id);
-            if (product.isEmpty()) {
-                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(null);
-            }
-            return ResponseEntity.ok(product.get());
+            return product.map(ResponseEntity::ok).orElseGet(() -> ResponseEntity.status(HttpStatus.NOT_FOUND).body(null));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(null);

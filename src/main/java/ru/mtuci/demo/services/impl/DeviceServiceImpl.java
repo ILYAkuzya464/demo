@@ -11,7 +11,10 @@ import ru.mtuci.demo.services.DeviceService;
 import java.net.NetworkInterface;
 import java.net.SocketException;
 import java.util.Enumeration;
+import java.util.List;
 import java.util.Optional;
+
+// Откуда берётся мак-адрес устройства? -  теперь мак отправляю через запрос
 
 @RequiredArgsConstructor
 @Service
@@ -19,8 +22,7 @@ public class DeviceServiceImpl implements DeviceService {
 
     private final DeviceRepository deviceRepository;
 
-    public Device addDevice(String name, User user) {
-        String mac = getLocalMacAddress();
+    public Device addDevice(String name, User user, String mac) {
         Optional<Device> existingDevice = deviceRepository.findByMac(mac);
         if (existingDevice.isPresent()) {
             throw new IllegalArgumentException("Устройство с таким MAC-адресом уже существует");
@@ -33,33 +35,17 @@ public class DeviceServiceImpl implements DeviceService {
         return deviceRepository.save(device);
     }
 
-    public static String getLocalMacAddress() {
-        try {
-            Enumeration<NetworkInterface> networkInterfaces = NetworkInterface.getNetworkInterfaces();
-            while (networkInterfaces.hasMoreElements()) {
-                NetworkInterface networkInterface = networkInterfaces.nextElement();
-
-                if (networkInterface.isUp() && !networkInterface.isVirtual()) {
-                    byte[] macAddress = networkInterface.getHardwareAddress();
-                    if (macAddress != null) {
-                        StringBuilder sb = new StringBuilder();
-                        for (int i = 0; i < macAddress.length; i++) {
-                            sb.append(String.format("%02X", macAddress[i]));
-                            if (i < macAddress.length - 1) sb.append(":");
-                        }
-                        return sb.toString();
-                    }
-                }
-            }
-        } catch (SocketException e) {
-            e.printStackTrace();
-        }
-        return null;
-    }
 
     public Device getByMac(String mac) {
         return deviceRepository.findByMac(mac)
                 .orElseThrow(() -> new EntityNotFoundException("Устройство с MAC-адресом " + mac + " не найдено"));
+    }
+
+    public void deleteDevice(Long deviceId) {
+        deviceRepository.deleteById(deviceId);
+    }
+    public List<Device> getDevicesByUser(User user) {
+        return deviceRepository.findByUser(user);
     }
 
 }

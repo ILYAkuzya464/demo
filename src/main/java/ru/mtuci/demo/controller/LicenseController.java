@@ -1,11 +1,14 @@
 package ru.mtuci.demo.controller;
 
 
+import ru.mtuci.demo.controller.dto.HistoryRequest;
 import ru.mtuci.demo.controller.dto.LicenseActivationRequest;
 import ru.mtuci.demo.controller.dto.LicenseRequest;
 import ru.mtuci.demo.controller.dto.UpdateLicenseRequest;
 import ru.mtuci.demo.model.License;
+import ru.mtuci.demo.model.LicenseHistory;
 import ru.mtuci.demo.model.User;
+import ru.mtuci.demo.services.LicenseHistoryService;
 import ru.mtuci.demo.services.LicenseService;
 import ru.mtuci.demo.services.UserService;
 import ru.mtuci.demo.ticket.Ticket;
@@ -17,6 +20,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.NoSuchElementException;
 
 
@@ -27,11 +31,12 @@ import java.util.NoSuchElementException;
 public class LicenseController {
     private final LicenseService licenseService;
     private final UserService userService;
+    private final LicenseHistoryService licenseHistoryService;
 
     @PostMapping("/activate")//есть
     public ResponseEntity<?> activateLicense(@RequestBody LicenseActivationRequest request) {
         try {
-            User authenticatedUser = getAuthenticatedUser();
+            User authenticatedUser = userService.getAuthenticatedUser();
             Ticket fullTicket = licenseService.activateLicense(request, authenticatedUser);
             return ResponseEntity.ok(fullTicket);
         } catch (IllegalArgumentException ex) {
@@ -64,7 +69,7 @@ public class LicenseController {
     @PostMapping("/renew")
     public ResponseEntity<?> renewLicense(@RequestBody UpdateLicenseRequest updateLicenseRequest) {
         try {
-            User authenticatedUser = getAuthenticatedUser();
+            User authenticatedUser = userService.getAuthenticatedUser();
             Ticket ticket = licenseService.renewLicense(updateLicenseRequest, authenticatedUser);
             return ResponseEntity.ok(ticket);
         } catch (IllegalArgumentException e) {
@@ -97,12 +102,13 @@ public class LicenseController {
         return licenseService.getLicenseInfo(mac);
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     @PatchMapping("/block/{licenseId}")
     public ResponseEntity<String> changeLicenseStatus(
             @PathVariable Long licenseId,
             @RequestParam boolean isBlocked) {
         try {
-            User authenticatedUser = getAuthenticatedUser();
+            User authenticatedUser = userService.getAuthenticatedUser();
             licenseService.changeLicenseStatus(licenseId, isBlocked, authenticatedUser);
             return ResponseEntity.ok("Статус лицензии успешно обновлен.");
         } catch (IllegalArgumentException e) {
@@ -114,12 +120,45 @@ public class LicenseController {
         }
     }
 
-    private User getAuthenticatedUser() {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (authentication != null) {
-            String username = (String) authentication.getPrincipal();
-            return userService.findByEmail(username).orElseThrow(() -> new IllegalArgumentException("User not found"));
+    @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
+    @GetMapping("/history")
+    public ResponseEntity<List<LicenseHistory>> getLicenseHistoryByKey(@RequestBody HistoryRequest historyRequest) {
+        try {
+            List<LicenseHistory> history = licenseHistoryService.getHistoryByLicenseKey(historyRequest.getKey());
+
+            if (history.isEmpty()) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(null);
+            }
+            return ResponseEntity.ok(history);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
         }
-        return null;
     }
+
+    @PreAuthorize("hasRole('ADMIN')")
+    @DeleteMapping("/history/clear-all")
+    public ResponseEntity<String> deleteAllHistory() {
+        try {
+            licenseHistoryService.deleteAllHistory();
+            return ResponseEntity.ok("Вся история лицензий удалена.");
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Ошибка: " + e.getMessage());
+        }
+    }
+
+    @PreAuthorize("hasRole('ADMIN')")
+    @DeleteMapping("/history/clear-by-key")
+    public ResponseEntity<String> deleteHistoryByLicenseKey(@RequestBody HistoryRequest historyRequest) {
+        try {
+            licenseHistoryService.deleteHistoryByLicenseKey(historyRequest.getKey());
+            return ResponseEntity.ok("История для лицензии удалена.");
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Ошибка: " + e.getMessage());
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Ошибка: " + e.getMessage());
+        }
+    }
+
 }

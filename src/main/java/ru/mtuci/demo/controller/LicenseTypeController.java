@@ -66,13 +66,25 @@ public class LicenseTypeController {
     public ResponseEntity<LicenseType> getLicenseTypeById(@PathVariable Long id) {
         try {
             Optional<LicenseType> licenseType = licenseTypeService.findById(id);
-            if (licenseType.isEmpty()) {
-                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(null);
-            }
-            return ResponseEntity.ok(licenseType.get());
+            return licenseType.map(ResponseEntity::ok).orElseGet(() -> ResponseEntity.status(HttpStatus.NOT_FOUND).body(null));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(null);
+        }
+    }
+
+    @PreAuthorize("hasRole('ADMIN')")
+    @PutMapping("/new-duration/{id}")
+    public ResponseEntity<String> updateDefaultDuration(
+            @PathVariable Long id,
+            @RequestParam int newDefaultDuration) {
+        try {
+            licenseTypeService.updateDuration(id, newDefaultDuration);
+            return ResponseEntity.ok("Длительность для LicenseType с ID " + id + " успешно обновлён на " + newDefaultDuration + " месяцевв");
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body("Ошибка: " + e.getMessage());
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Ошибка: " + e.getMessage());
         }
     }
 }

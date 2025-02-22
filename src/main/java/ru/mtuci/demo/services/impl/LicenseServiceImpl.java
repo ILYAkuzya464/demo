@@ -1,5 +1,6 @@
 package ru.mtuci.demo.services.impl;
 
+
 import ru.mtuci.demo.model.*;
 import ru.mtuci.demo.repo.DeviceRepository;
 import lombok.RequiredArgsConstructor;
@@ -8,10 +9,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import ru.mtuci.demo.controller.dto.LicenseActivationRequest;
 import ru.mtuci.demo.controller.dto.UpdateLicenseRequest;
-import ru.mtuci.demo.model.*;
 import ru.mtuci.demo.repo.DeviceLicenseRepository;
 import ru.mtuci.demo.repo.LicenseRepository;
-import ru.mtuci.demo.services.*;
 import ru.mtuci.demo.services.*;
 import ru.mtuci.demo.ticket.Ticket;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -21,6 +20,12 @@ import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.util.*;
+
+
+//TODO: 1. Как пользователю активировать лицензию на новом устройстве, если вы кидаете исключение? - девайс создается отдельно
+//TODO: 2. Тексты исключений не соответствуют реальной логике - исправил
+//TODO: 3. Ошибки в подсчетах дат - исправил - теперь в нужном часовом поясе
+//TODO: 4. Для чего нужен список тикетов? - Список нужен, потому что на каждом устройстве может быть несколько лицензий
 
 @RequiredArgsConstructor
 @Service
@@ -110,7 +115,7 @@ public class LicenseServiceImpl implements LicenseService {
 
         int defaultDuration = license.getLicenseType().getDefaultDuration();
         LocalDate expirationDate = LocalDate.now().plusMonths(defaultDuration);
-        Date newExpiration = Date.from(expirationDate.atStartOfDay(ZoneId.systemDefault()).toInstant());
+        Date newExpiration = Date.from(expirationDate.atStartOfDay(ZoneId.of("Europe/Moscow")).toInstant());
 
         if (license.getExpirationDate() == null) {
             license.setExpirationDate(newExpiration);
@@ -122,20 +127,19 @@ public class LicenseServiceImpl implements LicenseService {
 
         licenseHistoryService.recordLicenseChange(license, authenticatedUser, "Активировано", "Лицензия успешно активирована");
 
-        Ticket ticket = new Ticket(license, device);
-        return ticket;
+        return new Ticket(license, device);
     }
-
+    @Override
     public Ticket renewLicense(UpdateLicenseRequest updateLicenseRequest, User authenticatedUser) {
         boolean isAdmin = authenticatedUser.getRole() == ApplicationRole.ADMIN;
 
         License oldLicense = getByKey(updateLicenseRequest.getOldLicenseKey());
         if (oldLicense == null) {
-            throw new IllegalArgumentException("Активная лицензия не найдена по указанному ключу");
+            throw new IllegalArgumentException("Старая лицензия не найдена по указанному ключу");
         }
 
         User licenseOwner = oldLicense.getUser();
-        if (!isAdmin && (licenseOwner == null || !licenseOwner.getEmail().equals(authenticatedUser.getEmail()))) {
+        if (!isAdmin && !licenseOwner.getEmail().equals(authenticatedUser.getEmail())) {
             throw new IllegalArgumentException("Вы не можете продлевать чужую лицензию");
         }
 
@@ -143,25 +147,22 @@ public class LicenseServiceImpl implements LicenseService {
         if (newLicense == null) {
             throw new IllegalArgumentException("Новая лицензия не найдена по указанному ключу");
         }
-        if(oldLicense.getBlocked()==true)
+        if(oldLicense.getBlocked())
         {
             throw new IllegalArgumentException("Лицензия заблокирована");
         }
 
-
         if (newLicense.getActivationDate() != null) {
-            throw new IllegalArgumentException("Новая лицензия уже активирована");
+            throw new IllegalArgumentException("Стоит дата активации, значит новая лицензия уже активирована");
         }
+
+        Integer oldDefaultDuration = oldLicense.getLicenseType().getDefaultDuration();
+        Integer newDefaultDuration = newLicense.getLicenseType().getDefaultDuration();
 
         Integer oldMaxDevices = oldLicense.getLicenseType().getMaxDevices();
         Integer newMaxDevices = newLicense.getLicenseType().getMaxDevices();
-        if (oldMaxDevices > newMaxDevices) {
+        if (oldMaxDevices > newMaxDevices || oldDefaultDuration > newDefaultDuration) {
             throw new IllegalArgumentException("Нельзя продлить лицензию, так как текущая лицензия выше классом.");
-        }
-
-        long activeDeviceCount = countActiveDevicesForLicense(newLicense);
-        if (activeDeviceCount >= newMaxDevices) {
-            throw new IllegalArgumentException("Слишком много устройств");
         }
 
         Integer durationMonths = newLicense.getLicenseType().getDefaultDuration();
@@ -173,7 +174,7 @@ public class LicenseServiceImpl implements LicenseService {
                         .toLocalDate()
                         .plusMonths(durationMonths)
                         .atTime(0, 0)
-                        .toInstant(ZoneOffset.UTC)
+                        .toInstant(ZoneOffset.ofHours(3))
         );
 
         List<DeviceLicense> deviceLicenses = deviceLicenseRepository.findByLicenseId(oldLicense.getId());
@@ -196,8 +197,7 @@ public class LicenseServiceImpl implements LicenseService {
                 "Новая дата окончания: " + calculatedExpiration
         );
 
-        Ticket ticket = new Ticket(newLicense, deviceLicenses.get(0).getDevice());
-        return ticket;
+        return new Ticket(newLicense, deviceLicenses.get(0).getDevice());
     }
 
     @GetMapping("/info")
@@ -226,6 +226,7 @@ public class LicenseServiceImpl implements LicenseService {
         }
     }
 
+    @Override
     public void changeLicenseStatus(Long licenseId, boolean isBlocked, User authenticatedUser) {
         License license = licenseRepository.findById(licenseId)
                 .orElseThrow(() -> new IllegalArgumentException("Лицензия с таким ID не найдена"));
@@ -247,7 +248,6 @@ public class LicenseServiceImpl implements LicenseService {
             );
         }
     }
-
     @Override
     public void add(License license) {
         licenseRepository.save(license);
